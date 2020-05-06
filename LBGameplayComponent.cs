@@ -241,7 +241,10 @@ namespace LBGameplay
         // Update is called once per frame
         void Update()
         {
-            Perform();
+            if (state == LBGameplayComponentState.Active)
+            {
+                Perform();
+            }
         }
 
         public string Name

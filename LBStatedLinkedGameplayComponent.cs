@@ -44,7 +44,7 @@ namespace LBGameplay
     public struct LBStateSwitch
     {
         public int ParamID;
-        public int State;
+        public int State; 
 
         public LBStateSwitch(int _id, int _state)
         {
@@ -57,7 +57,7 @@ namespace LBGameplay
     public class LBStatedLinkedGameplayComponent : LBLinkedConditionalGameplayComponent
     {
         [SerializeField]
-        protected int current_state;
+        protected int current_state; // private?
         [SerializeField]
         protected LBInternalState[] states = new LBInternalState[] { LBInternalState.Default };
         [SerializeField]
@@ -75,6 +75,21 @@ namespace LBGameplay
         //    input_state_switch.TryGetValue(_id, out result);
         //    return result;
         //}
+
+
+        // нужно ли?
+        //protected override bool Init()
+        //{
+        //    if( base.Init())
+        //    {
+        //        InitStates();
+        //        return true;
+        //    }
+
+        //    return false;
+        //}
+
+        //protected void InitStates() { }
 
         protected virtual void OnSwitchState() { }
 
@@ -124,7 +139,28 @@ namespace LBGameplay
             SwitchStateOnTransferIn(link);
         }
 
-        public LBInternalState State
+        protected override void Perform()
+        {
+            base.Perform();
+
+            PerformState();
+        }
+
+        // performes current state
+        protected virtual void PerformState()
+        {
+
+        }
+
+        public int InternalStateID
+        {
+            get
+            {
+                return current_state;
+            }
+        }
+
+        public LBInternalState InternalState
         {
             get
             {
@@ -132,7 +168,7 @@ namespace LBGameplay
             }
         }
 
-        public LBInternalState[] AllStates
+        public LBInternalState[] AllInternalStates
         {
             get
             {
@@ -140,7 +176,7 @@ namespace LBGameplay
             }
         }
 
-        public string StateName
+        public string InternalStateName
         {
             get
             {
@@ -148,7 +184,7 @@ namespace LBGameplay
             }
         }
 
-        public string[] AllStateNames
+        public string[] AllInternnalStateNames
         {
             get
             {
@@ -362,7 +398,7 @@ namespace LBGameplay
 
                 GUILayout.BeginHorizontal();
                 EditorGUILayout.PrefixLabel("Internal state:");
-                GUILayout.Label(t.StateName);
+                GUILayout.Label(t.InternalStateName);
                 GUILayout.EndHorizontal();
             }
 

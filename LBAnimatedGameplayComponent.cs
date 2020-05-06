@@ -66,6 +66,95 @@ namespace LBGameplay
         }
     }
 
+    [System.Serializable]
+    public struct LBSlider
+    {
+        [SerializeField]
+        private string name;
+        [SerializeField]
+        private float pos;
+        [SerializeField]
+        private float interp_rate;
+
+        public LBSlider (string _name, float _pos, float _interp_rate = 0.1f)
+        {
+            name = _name;
+            pos = _pos;
+            interp_rate = _interp_rate;
+        }
+
+        public LBSlider (SerializedProperty _slider)
+        {
+            SerializedProperty st;
+
+            st = _slider;
+            st.Next(true);
+            name = st.stringValue;
+            st.Next(false);
+            pos = st.floatValue;
+            st.Next(false);
+            interp_rate = st.floatValue;
+        }
+
+        public void SetSerializedProperty(SerializedProperty _slider)
+        {
+            _slider.Next(true);
+            _slider.stringValue = name;
+            _slider.Next(false);
+            _slider.floatValue = pos;
+            _slider.Next(false);
+            _slider.floatValue = interp_rate;
+        }
+
+        public float SetPosition(float new_pos, float delta_time)
+        {
+            pos = LBMath.LerpFloat(pos, new_pos, interp_rate, delta_time);
+            return pos;
+        }
+
+        public float SetPosition(float new_pos, float delta_time, float rate = 0.1f)
+        {
+            pos = LBMath.LerpFloat(pos, new_pos, rate, delta_time);
+            return pos;
+        }
+
+        public string Name
+        {
+            get
+            {
+                return name;
+            }
+            set
+            {
+                name = value;
+            }
+        }
+
+        public float Position
+        {
+            get
+            {
+                return pos;
+            }
+            set
+            {
+                pos = value;
+            }
+        }
+
+        public float InterpRate
+        {
+            get
+            {
+                return interp_rate;
+            }
+            set
+            {
+                interp_rate = value;
+            }
+        }
+    }
+
     [AddComponentMenu("LBGameplay/Animated Gameplay Component (Dummy)")]
     public class LBAnimatedGameplayComponent : LBStatedLinkedGameplayComponent
     {
@@ -73,6 +162,8 @@ namespace LBGameplay
         protected Animator animator = null;
         [SerializeField]
         protected LBAnimationInfo[] animations = new LBAnimationInfo[0];
+        [SerializeField]
+        protected LBSlider[] sliders = new LBSlider[0];
         protected float startanimtime;
 
         protected override bool Init()
@@ -88,10 +179,10 @@ namespace LBGameplay
             return true;
         }
 
-        protected override void Perform()
-        {
+        //protected override void Perform()
+        //{
 
-        }
+        //}
 
         protected void PlayAnimation(string anim, int layer = 0, float offset = 0, LBAnimTransitionType transition = LBAnimTransitionType.Switch, float blend = 0.1f)
         {
@@ -118,6 +209,28 @@ namespace LBGameplay
         protected void PlayAnimation(LBAnimationInfo anim)
         {
             PlayAnimation(anim.AnimationName, anim.AnimationLayer, 0, anim.AnimationTransition, anim.TransitionTime);
+        }
+
+        protected void UpdateSlider(string name, float pos)
+        {
+            int i;
+
+            for (i = 0; i < sliders.Length; i++)
+            {
+                if (sliders[i].Name == name)
+                    animator.SetFloat(name, sliders[i].SetPosition(pos, Time.deltaTime));
+            }
+        }
+
+        protected void UpdateSlider(int id, float pos)
+        {
+            if (id >=0 && id < sliders.Length)
+                animator.SetFloat(sliders[id].Name, sliders[id].SetPosition(pos, Time.deltaTime));
+        }
+
+        public void SetSliderPosition(int id, float pos)
+        {
+            UpdateSlider(id, pos);
         }
 
         protected bool IsAnimationFinished(string anim)
@@ -166,6 +279,14 @@ namespace LBGameplay
                 return (int)(animator.GetCurrentAnimatorStateInfo(animations[current_state].AnimationLayer).normalizedTime - startanimtime);
             }
         }
+
+        public LBSlider[] AllSliders
+        {
+            get
+            {
+                return sliders;
+            }
+        }
     }
 
     namespace Editors
@@ -176,58 +297,34 @@ namespace LBGameplay
             int selected_anim;
             int selected_layer;
 
-            //protected void DisplayAnimations_Editor()
-            //{
-            //    Animator animator;
-            //    AnimatorController controller;
-            //    AnimatorControllerLayer[] layers;
-            //    List<LBAnimationInfo> states = new List<LBAnimationInfo>();
-            //    List<string> state_names = new List<string>();
-            //    int i, j;
+            protected LBSlider[] GetAllSliders()
+            {
+                SerializedProperty sliders;
+                List<LBSlider> all_sliders;
+                int i;
 
-            //    MakeCenteredLabel("------ Animations ------", 16, 16);
+                all_sliders = new List<LBSlider>();
+                sliders = serializedObject.FindProperty("sliders");
 
-            //    //GUILayout.Label("------ Animations ------", centered);
+                for (i = 0; i < sliders.arraySize; i++)
+                {
+                    all_sliders.Add(new LBSlider(sliders.GetArrayElementAtIndex(i)));
+                }
 
-            //    animator = ((Component)target).gameObject.GetComponent<Animator>();
+                return all_sliders.ToArray();
+            }
 
-            //    if (animator == null)
-            //    {
-            //        MakeCenteredLabel("<No animation states to show>");
-            //        return;
-            //    }
+            protected void AddNewSlider()
+            {
+                SerializedProperty sliders;
+                LBSlider slider;
 
-            //    controller = (AnimatorController)animator.runtimeAnimatorController;
+                slider = new LBSlider("noparam", 0);
+                sliders = serializedObject.FindProperty("sliders");
 
-            //    if (controller == null)
-            //    {
-            //        MakeCenteredLabel("<No animation states to show>");
-            //        return;
-            //    }
-
-            //    layers = controller.layers;
-
-            //    for (i = 0; i < layers.Length; i++)
-            //    {
-            //        ChildAnimatorState[] child_states = layers[i].stateMachine.states;
-
-            //        for (j = 0; j < child_states.Length; j++)
-            //        {
-            //            states.Add(new LBAnimationInfo(child_states[j].state.name, i));
-            //            state_names.Add(child_states[j].state.name);
-            //            //state_names.Add(child_states[j].state.name);
-            //            //GUILayout.Label(child_states[j].state.name);
-            //            //GUILayout.Space(4);
-            //        }
-            //    }
-
-            //    animation = EditorGUILayout.Popup("Animation to play", 0, state_names.ToArray());
-
-            //    if (GUILayout.Button("Play!"))
-            //    {
-            //        ((LBAnimatedGameplayComponent)target).PlayAnimation(states[animation]);
-            //    }
-            //}
+                sliders.arraySize++;
+                slider.SetSerializedProperty(sliders.GetArrayElementAtIndex(sliders.arraySize - 1));
+            }
 
             protected int FindOrCreateAnimationForState(int state)
             {
@@ -244,7 +341,7 @@ namespace LBGameplay
                 return state;
             }
 
-            protected virtual void DisplayAnimationInfo(int id)
+            protected virtual void DisplayAnimationInfo(int id, bool readonly_Layer = false, bool readonly_anim = false, bool readonly_blend = false)
             {
                 Animator animator;
                 AnimatorController controller;
@@ -275,7 +372,9 @@ namespace LBGameplay
                 for (i = 0; i < layers.Length; i++)
                     layer_names.Add("Layer " + i.ToString());
 
+                EditorGUI.BeginDisabledGroup(readonly_Layer);
                 anim.AnimationLayer = EditorGUILayout.Popup("Layer", anim.AnimationLayer, layer_names.ToArray());
+                EditorGUI.EndDisabledGroup();
                 child_states = layers[anim.AnimationLayer].stateMachine.states;
 
                 for (i = 0; i < child_states.Length; i++)
@@ -283,52 +382,141 @@ namespace LBGameplay
                     anim_names.Add(child_states[i].state.name);
                 }
 
+                EditorGUI.BeginDisabledGroup(readonly_anim);
                 // хер поймёшь здесь будет anim_names в том же порядке, что в аниматоре всегда или будет переставляться по кд...
                 if (anim_names.IndexOf(anim.AnimationName) > 0 && anim_names.IndexOf(anim.AnimationName) < anim_names.Count)
                     anim.AnimationName = anim_names[EditorGUILayout.Popup("Animation", anim_names.IndexOf(anim.AnimationName), anim_names.ToArray())];
                 else
                     anim.AnimationName = anim_names[EditorGUILayout.Popup("Animation", 0, anim_names.ToArray())];
+                EditorGUI.EndDisabledGroup();
 
                 anim.AnimationTransition = (LBAnimTransitionType)(EditorGUILayout.Popup("Animation blend mode", (int)(anim.AnimationTransition), System.Enum.GetNames(typeof(LBAnimTransitionType))));
 
                 if (anim.AnimationTransition == LBAnimTransitionType.Corssfade || anim.AnimationTransition == LBAnimTransitionType.Blend)
                 {
+                    EditorGUI.BeginDisabledGroup(readonly_blend);
                     anim.TransitionTime = EditorGUILayout.FloatField("Blend time", anim.TransitionTime);
+                    EditorGUI.EndDisabledGroup();
                 }
 
                 // finally save modified values
                 anim.SetSerializedProperty(anim_sp.GetArrayElementAtIndex(anim_id));
             }
 
-            protected virtual void DisplayAnimatedStateProperties_Editor()
+            protected virtual void DisplayAnimatedStateProperties_Editor(bool no_delete = false, bool readonly_Layer = false, bool readonly_anim = false, bool readonly_blend = false)
             {
-                SerializedProperty animations;
+                //SerializedProperty animations;
                 LBInternalState[] states;
                 int i;
 
                 if (Application.isPlaying)
                     return;
 
-                animations = serializedObject.FindProperty("animations");
+                //animations = serializedObject.FindProperty("animations");
 
                 states = GetAllStates();
 
-                GUILayout.Space(16);
-                
+                //GUILayout.Space(16);
+                MakeCenteredLabel("------ Animation properties ------", 16, 16);
+
                 for (i=0; i<states.Length; i++)
                 {
                     GUILayout.BeginVertical(EditorStyles.helpBox);
                     GUILayout.BeginHorizontal();
                     EditorGUILayout.PrefixLabel(states[i].Name);
+                    EditorGUI.BeginDisabledGroup(no_delete);
                     if (GUILayout.Button("Delete"))
                     {
                         //l.DeleteCommand(); // количество элементов уменьшается!!!
                     }
+                    EditorGUI.EndDisabledGroup();
                     GUILayout.EndHorizontal();
-                    //EditorGUILayout.PropertyField(animations.GetArrayElementAtIndex(FindOrCreateAnimationForState(i)), new GUIContent("Animation"));
-                    DisplayAnimationInfo(i);
+                    DisplayAnimationInfo(i, readonly_Layer, readonly_anim, readonly_blend);
                     GUILayout.EndVertical();
                     //GUILayout.Space(4);
+                }
+            }
+
+            protected virtual void DisplaySliderInfo(int id, bool readonly_name = false, bool readonly_interp = false, bool readonly_pos = false)
+            {
+                Animator animator;
+                AnimatorController controller;
+                SerializedProperty slider_sp;
+                LBSlider slider;
+                List<string> param_names = new List<string>();
+                int i;
+
+                animator = ((Component)target).gameObject.GetComponent<Animator>();
+
+                if (animator == null)
+                    return;
+
+                controller = (AnimatorController)animator.runtimeAnimatorController;
+
+                if (controller == null || controller.parameters.Length == 0)
+                    return;
+
+                slider_sp = serializedObject.FindProperty("sliders");
+                slider = new LBSlider(slider_sp.GetArrayElementAtIndex(id));
+
+                for (i = 0; i < controller.parameters.Length; i++)
+                {
+                    if (controller.parameters[i].type == AnimatorControllerParameterType.Float)
+                        param_names.Add(controller.parameters[i].name);
+                }
+
+                // гемор: может быть использован парамтер с одним именем дважды!
+
+                EditorGUI.BeginDisabledGroup(readonly_name);
+                if (param_names.IndexOf(slider.Name) > 0 && param_names.IndexOf(slider.Name) < param_names.Count)
+                    slider.Name = param_names[EditorGUILayout.Popup("Parameter", param_names.IndexOf(slider.Name), param_names.ToArray())];
+                else
+                    slider.Name = param_names[EditorGUILayout.Popup("Animation", 0, param_names.ToArray())];
+                EditorGUI.EndDisabledGroup();
+
+                EditorGUI.BeginDisabledGroup(readonly_interp);
+                slider.InterpRate = EditorGUILayout.FloatField("Interpolation rate", slider.InterpRate);
+                EditorGUI.EndDisabledGroup();
+
+                EditorGUI.BeginDisabledGroup(readonly_pos);
+                slider.Position = EditorGUILayout.Slider("Position", slider.Position, 0, 1);
+                EditorGUI.EndDisabledGroup();
+
+                slider.SetSerializedProperty(slider_sp.GetArrayElementAtIndex(id));
+            }
+
+            protected virtual void DisplaySliderProperties_Editor(bool no_delete = false, bool readonly_name = false, bool readonly_interp = false, bool readonly_pos = false)
+            {
+                LBSlider[] sliders;
+                int i;
+
+                if (Application.isPlaying)
+                    return;
+
+                sliders = GetAllSliders();
+
+                MakeCenteredLabel("------ Slider properties ------", 16, 16);
+
+                for (i = 0; i < sliders.Length; i++)
+                {
+                    GUILayout.BeginVertical(EditorStyles.helpBox);
+                    GUILayout.BeginHorizontal();
+                    EditorGUILayout.PrefixLabel(sliders[i].Name);
+                    EditorGUI.BeginDisabledGroup(no_delete);
+                    if (GUILayout.Button("Delete"))
+                    {
+                        //l.DeleteCommand(); // количество элементов уменьшается!!!
+                    }
+                    EditorGUI.EndDisabledGroup();
+                    GUILayout.EndHorizontal();
+                    DisplaySliderInfo(i, readonly_name, readonly_interp, readonly_pos);
+                    GUILayout.EndVertical();
+                }
+
+                GUILayout.Space(8);
+                if (GUILayout.Button("Add new slider"))
+                {
+                    AddNewSlider();
                 }
             }
 
@@ -342,7 +530,7 @@ namespace LBGameplay
                     return;
 
                 agc = (LBAnimatedGameplayComponent)target;
-                states = agc.AllStates;
+                states = agc.AllInternalStates;
 
                 GUILayout.Space(16);
 
@@ -351,7 +539,7 @@ namespace LBGameplay
                     GUILayout.BeginVertical(EditorStyles.helpBox);
                     GUILayout.BeginHorizontal();
                     EditorGUILayout.PrefixLabel(states[i].Name);
-                    if (states[i].Name != agc.State.Name)
+                    if (states[i].Name != agc.InternalState.Name)
                     {
                         if (GUILayout.Button("Play"))
                         {
@@ -369,14 +557,41 @@ namespace LBGameplay
                 }
             }
 
+            protected virtual void DisplaySliderProperties_Game()
+            {
+                LBAnimatedGameplayComponent agc;
+                LBSlider[] sliders;
+                int i;
+
+                if (!Application.isPlaying)
+                    return;
+
+                agc = (LBAnimatedGameplayComponent)target;
+                sliders = agc.AllSliders;
+
+                MakeCenteredLabel("------ Slider info ------", 16, 16);
+
+                for (i = 0; i < sliders.Length; i++)
+                {
+                    GUILayout.BeginVertical(EditorStyles.helpBox);
+                    agc.SetSliderPosition(i, EditorGUILayout.Slider(sliders[i].Name, sliders[i].Position, 0, 1));
+                    GUILayout.EndVertical();
+                }
+            }
+
             public override void OnInspectorGUI()
             {
                 base.OnInspectorGUI();
-
+                
                 if (Application.isPlaying)
                     DisplayAnimatedStateProperties_Game();
                 else
                     DisplayAnimatedStateProperties_Editor();
+
+                if (Application.isPlaying)
+                    DisplaySliderProperties_Game();
+                else
+                    DisplaySliderProperties_Editor();
 
                 serializedObject.ApplyModifiedProperties();
             }
